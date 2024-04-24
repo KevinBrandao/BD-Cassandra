@@ -1,0 +1,155 @@
+// Obtendo informações sobre o keyspace (banco de dados)
+describe cassandra;
+
+// Criando uma column family ("tabela")
+create table cassandra.users (
+	id uuid,
+	country text,
+	first_name text,
+	last_name text,
+	active boolean,
+	primary key(id)
+);
+
+// Obtendo informações sobre a column family
+describe cassandra.users;
+
+// Inserindo um usuário, informando valores para todas as colunas
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'Brasil', 'Zé', 'Carioca', true);
+
+// Inserindo outros usuários, omitindo algumas colunas
+insert into cassandra.users(id, country, first_name)
+values(uuid(), 'Argentina', 'Mafalda');
+
+insert into cassandra.users(id, country, last_name, active) 
+values(uuid(), 'Brasil', 'Penadinho', false);
+
+// Listando todos os linhas da column family
+select * from cassandra.users;
+
+// *TENTANDO* selecionar uma linha específica filtrando por
+// um campo que NÃO pertence à chave primária
+select * from cassandra.users where country = 'Brasil';
+
+// Excluindo a column family cassandra.users para recriá-la
+// depois com uma chave primária mais adequada
+drop table cassandra.users;
+
+// Recriando a column family cassandra.users especificando uma
+// chave primária composta por dois campos:
+// country (primeiro campo) ~> indicará o agrupamento de valores
+// semelhantes nos mesmos nós do cluster (PARTITION KEY)
+// last_name (segundo campo) ~> indicará a ordem das linhas dentro
+// de um agrupamento (CLUSTERING KEY)
+create table cassandra.users (
+	id uuid,
+	country text,
+	first_name text,
+	last_name text,
+	active boolean,
+	primary key(country, last_name)
+);
+
+// Agora, nenhum campo que esteja mencionado na primary key pode ser omitido.
+// Portanto, teremos que mudar a forma de inserir o usuário Mafalda
+insert into cassandra.users(id, country, last_name)
+values(uuid(), 'Argentina', 'Mafalda');
+
+// Mais alguns inserts
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'França', null, 'Obelix', true);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'EUA', 'Mickey', 'Mouse', true);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'França', null, 'Asterix', false);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'EUA', 'Donald', 'Duck', true);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'Japão', 'Son', 'Goku', true);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'Japão', 'Ash', 'Ketchum', true);
+
+insert into cassandra.users(id, country, first_name, last_name, active)
+values(uuid(), 'Brasil', 'Menino', 'Maluquinho', true);
+
+// Qualquer consulta com filtro (WHERE) precisa, por padrão, mencionar
+// TODOS os campos da chave primária. A consulta abaixo retornará um erro,
+// pois o campo last_name, que faz parte da primary key, não foi especificado
+// na cláusula WHERE.
+select * from cassandra.users where country = 'Brasil' and first_name = 'Menino';
+
+// Portanto, os campos que irão compor a primary key de uma column family do
+// Cassandra precisam ser cuidadosamente planejados, tendo em vista as consultas
+// que se pretende fazer futuramente sobre a column family.
+
+// No entanto, às vezes é necessário executar consultas filtrando por campos
+// que não pertencem à primary key. Para não usar ALLOW FILTERING, que degrada
+// o desempenho por forçar uma busca em todos os nós do cluster, o Cassandra
+// oferece a possibilidade de se criar um índice para o campo sobre o qual
+// se pretende fazer o filtro no WHERE.
+create index idx_first_name on cassandra.users(first_name);
+
+// Alterando a tabela users para criar novos campos dos tipos map, set e list
+alter table cassandra.users add (favorites map<text, text>, interests set<text>, friends list<text>);
+
+// Inserindo um novo usuário com os novos campos preenchidos
+insert into cassandra.users(id, country, first_name, last_name, active, favorites, interests, friends)
+values (
+	uuid(),
+	'Brasil',
+	'Magali',
+	'Lima',
+	true,
+	{ 'food': 'melancia', 'color': 'amarelo', 'animal': 'gato' },
+	{ 'comida', 'moda', 'amizades', 'música', 'moda' },
+	[ 'Mônica', 'Cascão', 'Cebolinha', 'Anjinho', 'Cascão' ]
+);
+
+// TRABALHANDO COM MAPS
+// Um map é uma estrutura chave-valor, equivalente ao tipo JSON em outros bancos de dados.
+// No Cassandra, é necessário especificar os tipos tanto da chave quanto do valor ao
+// criar uma coluna do tipo map. No caso da nossa coluna favorites, ambos são text 
+// (map<text, text>).
+
+// Atualizando o Mickey Mouse para acrescentar seus favoritos
+update cassandra.users set favorites = { 'food': 'queijo', 'animal': 'cão', 'color': 'vermelho', 'car': 'buggy' } where country = 'EUA' and last_name = 'Mouse';
+
+// Atualizando para incluir um novo favorito em uma linha onde já existem favoritos
+update cassandra.users set favorites['toy'] = 'boneca' where country = 'Brasil' and last_name = 'Lima';
+
+// Atualizando para excluir um favorito dentre outros favoritos
+delete favorites['food'] from cassandra.users
+where country = 'EUA' and last_name = 'Mouse';
+
+// TRABALHANDO COM SETS
+// Um set é um conjunto de itens, sem repetição entre eles
+
+// Atualizando a Mafalda para acrescentar seus interesses
+update cassandra.users
+set interests = { 'política', 'filosofia', 'arte', 'política' }
+where country = 'Argentina' and last_name = 'Mafalda';
+
+// Atualizando a Magali para incluir novos interesses
+update cassandra.users
+set interests = interests + { 'brincadeiras', 'desenhar' }
+where country = 'Brasil' and last_name = 'Lima';
+
+// Atualizando a Magali para incluir novos interesses
+update cassandra.usersset interests = interests + { 'brincadeiras', 'desenhar' }where country = 'Brasil' and last_name = 'Lima';
+
+// Atualizando a Mafalda para excluir um de seus interesses
+update cassandra.usersset interests = interests - { 'arte' }where country = 'Argentina' and last_name = 'Mafalda';
+
+// TRABALHANDO COM LISTAS// Listas são semelhantes a conjuntos (sets), mas permitem repetições
+// Adicionando uma lista de amigos para Donald Duck
+update cassandra.usersset friends = [ 'Margarida', 'Pateta', 'Gastão', 'Mickey', 'Pateta', 'Minnie' ]where country = 'EUA' and last_name = 'Duck';
+// Adicionando mais amigos para a Magaliupdate cassandra.usersset friends = friends + [ 'Marina', 'Titi', 'Franjinha' ]where country = 'Brasil' and last_name = 'Lima';
+
+// Excluindo um item de uma lista: é necessário informar a respectiva POSIÇÃO// * APESAR DE A INSTRUÇÃO ESTAR DE ACORDO COM A DOCUMENTAÇÃO, A EXECUÇÃO DÁ ERRO 
+*delete friends[4] from cassandra.userswhere country = 'Brasil' and last_name = 'Lima';
