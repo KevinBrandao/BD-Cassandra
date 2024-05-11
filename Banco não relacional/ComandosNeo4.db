@@ -1,0 +1,78 @@
+// Comando básico para mostrar todos os nós e suas relações
+match(x) return x;
+// Criando um nó do tipo pessoa
+create (p:Person {name: "Odorico de Oliveira", birth_date: "1951-07-18"})
+return p;
+// Criando um nó do tipo carro
+create (c:Car { brand: "Volkswagen", name: "Fusca", year: 1969, color: "preto" })
+return c;
+// Criando um relacionamento entre dois nós existentes
+match (a:Person { name: "Odorico de Oliveira" })
+match (b:Car { name: "Fusca" })
+create (a)-[:OWNS]->(b)
+return a, b;
+// Criando dois nós e um relacionamento entre eles
+create (p:Person { name: "Verônica Vieira", birth_date: "1988-05-27" })-[:WORKS_AT]->(s:Store { name: "Carros & Carros Ltda.", city: "Franc
+return p, s;
+// Criando mais um relacionamento com nós já existentes
+match (j:Person { name: "Verônica Vieira" })
+match (k:Car { name: "Fusca" })
+create (k)<-[:SOLD]-(j)
+return j, k;
+// Criando relacionamento com nós existentes e novos usando CONTAINS
+// para procurar por parte da string
+match (s:Store) where s.name contains "Carros"
+create (s)-[:HAS_IN_STOCK { since: "2024-05-02" }]->(c:Car { name: "Corcel", brand: "Ford", year: 1974, color: "vermelho" })
+return s, c;
+// Criando mais relacionamentos
+match (s:Store) where s.name contains "Carros"
+create (s)<-[:WORKS_AT]-(p:Person { name: "Gualberto Granado", birth_date: "1975-10-26"})
+return s, p;
+match (p:Person) where p.name contains "Gualberto"
+create (p)-[:SOLD]->(c:Car { name: "Del Rey", brand: "Ford", year: 1980, color: "dourado" })
+return p, c;
+match (c:Car) where c.name contains "Del Rey"
+create (p:Person { name: "Otacílio de Oliveira", birth_date: "1973-07-27" })-[:OWNS]->(c)
+return p, c;
+match (p:Person) where p.name contains "Odorico"
+match (q:Person) where q.name contains "Otacílio"
+create (p)<-[:SON_OF]-(q)-[:FATHER_OF]->(p)
+return p, q;
+// Apagando um relacionamento criado errado
+match (odo:Person) where odo.name contains "Odorico"
+match (ota:Person) where ota.name contains "Otacílio"
+match (ota)-[r:FATHER_OF]->(odo)
+delete r
+return odo, ota;
+// Criando o relacionamento correto entre Odorico e Otacílio
+match (odo:Person) where odo.name contains "Odorico"
+match (ota:Person) where ota.name contains "Otacílio"
+create (odo)-[:FATHER_OF]->(ota)
+return odo, ota;
+// Fazendo Verônica comprar o Corcel
+match (v:Person) where v.name contains "Verônica"
+match (g:Person) where g.name contains "Gualberto"
+match (c:Car) where c.name contains "Corcel"
+create (v)<-[:OWNS]-(c)<-[:SOLD]-(g)
+return v, c, g;
+// Tirando o Corcel do estoque da Carros & Carros, agora que ele foi vendido
+match (c:Car) where c.name contains "Corcel"
+match (s:Store) where s.name contains "Carros"
+match (s)-[x:HAS_IN_STOCK]->(c)
+delete x
+return s, c;
+// Consertando mais um relacionamento errado
+match (v:Person) where v.name contains "Verônica"
+match (c:Car) where c.name contains "Corcel"
+match (c)-[x:OWNS]->(v)
+delete x
+return c, v;
+match (v:Person) where v.name contains "Verônica"
+match (c:Car) where c.name contains "Corcel"
+create (v)-[:OWNS]->(c)
+return c, v;
+// Pesquisando todas as pessas que possuem um carro
+11/05/2024, 11:06 Geral (Banco de Dados Nao relacional-A890-N-D.S.M.-109-20241) | Microsoft Teams classic
+https://teams.microsoft.com/_?clientexperience=t1#/school/conversations/Geral?threadId=19:b53cGyGSNG-hU0cWbyqz21Y78qQCU47oNHRU… 1/2
+match (p:Person)-[:OWNS]->(:Car)
+return p;
